@@ -17,7 +17,7 @@ const HEADINGS_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
 };
 
 const CODEBLOCK_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
-	DEFAULT: /`{.(\w+)}`/g, // Standard format '`{<LANG/FILE>}`'
+	DEFAULT: /^`{.(\w+)}`/g, // Standard format '`{<LANG/FILE>}`'
 };
 
 // Snippet handler types
