@@ -4,11 +4,13 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 interface MarkdownSpedUpPluginSettings {
 	headingSnippetPattern: string;
 	codeblockSnippetPattern: string;
+	calloutSnippetPattern: string;
 }
 
 const DEFAULT_SETTINGS: Partial<MarkdownSpedUpPluginSettings> = {
 	headingSnippetPattern: "DEFAULT",
 	codeblockSnippetPattern: "DEFAULT",
+	calloutSnippetPattern: "DEFAULT",
 };
 
 const HEADINGS_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
@@ -20,6 +22,10 @@ const CODEBLOCK_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
 	DEFAULT: /^`{.(\w+)}`/g, // Standard format '`{<LANG/FILE>}`'
 	QUICK: /^\.(\w+)\s/g
 };
+
+const CALLOUT_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
+	DEFAULT: /^!(\w+)\s/g
+}
 
 // Snippet handler types
 type SnippetHandler = (
@@ -59,6 +65,22 @@ function handleCodeblockSnippet(
 }
 
 /**
+ * Callout snippet handler - converts !<TYPE> to Obsidian callouts
+ */
+
+function handleCalloutSnippet(
+	line: string,
+	match: RegExpExecArray
+): { newLine: string; cursorPos?: number } {
+	const typeStr = match[1];
+	const newContext = ">[!" + typeStr + "]\n>";
+	const newLine = line.replace(match[0], newContext)
+	const cursorPos = (match.index ?? 0) + (">" + typeStr).length + 1;
+	return { newLine, cursorPos }
+
+}
+
+/**
  * Snippet router - detects snippet type and routes to appropriate handler
  */
 function routeSnippet(
@@ -87,6 +109,20 @@ function routeSnippet(
 	const codeblockMatch = codeblockPattern.exec(line);
 	if (codeblockMatch) {
 		const result = handleCodeblockSnippet(line, codeblockMatch);
+		return {
+			modified: true,
+			newLine: result.newLine,
+			cursorPos: result.cursorPos,
+		};
+	}
+
+	// Check for callout snippet
+	const calloutPattern =
+		CALLOUT_SNIPPET_PATTERN_MAP[settings.calloutSnippetPattern];
+	calloutPattern.lastIndex = 0; // Reset regex state
+	const calloutMatch = calloutPattern.exec(line);
+	if (calloutMatch) {
+		const result = handleCalloutSnippet(line, calloutMatch);
 		return {
 			modified: true,
 			newLine: result.newLine,
