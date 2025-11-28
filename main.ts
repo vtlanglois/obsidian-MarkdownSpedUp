@@ -18,6 +18,7 @@ const HEADINGS_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
 
 const CODEBLOCK_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
 	DEFAULT: /^`{.(\w+)}`/g, // Standard format '`{<LANG/FILE>}`'
+	QUICK: /^\.(\w+)\s/g
 };
 
 // Snippet handler types
@@ -111,7 +112,7 @@ export default class MarkdownSpedUpPlugin extends Plugin {
 		this.addSettingTab(new MarkdownSpedUpSettingTab(this.app, this));
 	}
 
-	onunload() {}
+	onunload() { }
 
 	async loadSettings() {
 		this.settings = Object.assign(
@@ -168,11 +169,11 @@ class MarkdownSpedUpSettingTab extends PluginSettingTab {
 
 		const headingFormatDesc = document.createDocumentFragment();
 		headingFormatDesc.appendText("Change heading snippet format: ");
-		const list = headingFormatDesc.createEl("ol");
+		const headingList = headingFormatDesc.createEl("ol");
 
 		// Add list items
-		list.createEl("li", { text: "DEFAULT: Use #<NUMBER> format" });
-		list.createEl("li", { text: "EMMET: Use #*<NUMBER> format" });
+		headingList.createEl("li", { text: "DEFAULT: Use #<NUMBER> format" });
+		headingList.createEl("li", { text: "EMMET: Use #*<NUMBER> format" });
 
 		new Setting(containerEl)
 			.setName("Format for Headings")
@@ -184,6 +185,29 @@ class MarkdownSpedUpSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.headingSnippetPattern)
 					.onChange(async (value) => {
 						this.plugin.settings.headingSnippetPattern = value;
+						await this.plugin.saveSettings();
+						this.display();
+					})
+			);
+
+		const codeblockFormatDesc = document.createDocumentFragment();
+		codeblockFormatDesc.appendText("Change codeblock snippet format: ");
+		const codeBlocklist = codeblockFormatDesc.createEl("ol");
+
+		// Add list items
+		codeBlocklist.createEl("li", { text: "DEFAULT: Use `{.<LANG/FILE>}` format" });
+		codeBlocklist.createEl("li", { text: "QUICK: Use .<LANG/FILE> format" });
+
+		new Setting(containerEl)
+			.setName("Format for Headings")
+			.setDesc(codeblockFormatDesc)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("DEFAULT", "Default")
+					.addOption("QUICK", "Quick")
+					.setValue(this.plugin.settings.codeblockSnippetPattern)
+					.onChange(async (value) => {
+						this.plugin.settings.codeblockSnippetPattern = value;
 						await this.plugin.saveSettings();
 						this.display();
 					})
