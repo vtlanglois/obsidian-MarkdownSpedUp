@@ -12,13 +12,89 @@ const DEFAULT_SETTINGS: Partial<MarkdownSpedUpPluginSettings> = {
 };
 
 const HEADINGS_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
-	DEFAULT: /^#(\d+)\s(\w+)/gm, // Standard format '#<NUMBER>'
-	EMMET: /^#\*(\d+)\s(\w+)/gm, // Emmet format '#*<NUMBER>'
+	DEFAULT: /^#(\d+)\s(\w+)/g, // Standard format '#<NUMBER>'
+	EMMET: /^#\*(\d+)\s(\w+)/g, // Emmet format '#*<NUMBER>'
 };
 
 const CODEBLOCK_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
-	DEFAULT: /`{.(\w+)}`/gm, // Standard format '`{<LANG/FILE>}`'
+	DEFAULT: /`{.(\w+)}`/g, // Standard format '`{<LANG/FILE>}`'
 };
+
+// Snippet handler types
+type SnippetHandler = (
+	line: string,
+	match: RegExpMatchArray,
+	editor: Editor,
+	lineNumber: number
+) => string | null;
+
+/**
+ * Heading snippet handler - converts #<NUMBER> to markdown heading levels
+ */
+function handleHeadingSnippet(
+	line: string,
+	match: RegExpMatchArray
+): { newLine: string; cursorPos?: number } {
+	const numberStr = match[1];
+	const number = parseInt(numberStr, 10);
+	const level = Math.max(1, Math.min(number, 6));
+	const newLine = line.replace(match[0], "#".repeat(level) + " ");
+	return { newLine };
+}
+
+/**
+ * Codeblock snippet handler - converts `{<LANG/FILE>}` to markdown codeblock
+ */
+function handleCodeblockSnippet(
+	line: string,
+	match: RegExpMatchArray
+): { newLine: string; cursorPos?: number } {
+	const fileStr = match[1];
+	const newContent = "```" + fileStr + "\n\n```";
+	const newLine = line.replace(match[0], newContent);
+	// Position cursor after the opening ``` and language (on the empty line)
+	const cursorPos = (match.index ?? 0) + ("```" + fileStr).length + 1;
+	return { newLine, cursorPos };
+}
+
+/**
+ * Snippet router - detects snippet type and routes to appropriate handler
+ */
+function routeSnippet(
+	line: string,
+	lineNumber: number,
+	settings: MarkdownSpedUpPluginSettings
+): { modified: boolean; newLine: string; cursorPos?: number } {
+	// Check for heading snippet
+	const headingPattern =
+		HEADINGS_SNIPPET_PATTERN_MAP[settings.headingSnippetPattern];
+	headingPattern.lastIndex = 0; // Reset regex state
+	const headingMatch = headingPattern.exec(line);
+	if (headingMatch) {
+		const result = handleHeadingSnippet(line, headingMatch);
+		return {
+			modified: true,
+			newLine: result.newLine,
+			cursorPos: result.cursorPos,
+		};
+	}
+
+	// Check for codeblock snippet
+	const codeblockPattern =
+		CODEBLOCK_SNIPPET_PATTERN_MAP[settings.codeblockSnippetPattern];
+	codeblockPattern.lastIndex = 0; // Reset regex state
+	const codeblockMatch = codeblockPattern.exec(line);
+	if (codeblockMatch) {
+		const result = handleCodeblockSnippet(line, codeblockMatch);
+		return {
+			modified: true,
+			newLine: result.newLine,
+			cursorPos: result.cursorPos,
+		};
+	}
+
+	return { modified: false, newLine: line };
+}
 
 export default class MarkdownSpedUpPlugin extends Plugin {
 	settings: MarkdownSpedUpPluginSettings;
@@ -28,7 +104,7 @@ export default class MarkdownSpedUpPlugin extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on("editor-change", (editor: Editor) => {
-				this.detectSnippets(editor);
+				this.processCursorLine(editor);
 			})
 		);
 
@@ -49,44 +125,27 @@ export default class MarkdownSpedUpPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	detectSnippets(editor: Editor): void {
-		const content = editor.getValue();
-		// Pattern to match #<NUMBER> at the start of a line
-		const headingSnippetPattern =
-			HEADINGS_SNIPPET_PATTERN_MAP[this.settings.headingSnippetPattern];
+	/**
+	 * Process only the current line where the cursor is
+	 */
+	processCursorLine(editor: Editor): void {
+		const cursor = editor.getCursor();
+		const lineNumber = cursor.line;
+		const line = editor.getLine(lineNumber);
 
-		const codeblockSnippetPattern =
-			CODEBLOCK_SNIPPET_PATTERN_MAP[
-				this.settings.codeblockSnippetPattern
-			];
+		if (!line) return;
 
-		let modified = false;
-		let shouldMoveCursor = false;
-		let previousCursor = undefined;
-		let newContent = content.replace(
-			headingSnippetPattern,
-			(match, numberStr) => {
-				modified = true;
-				const number = parseInt(numberStr, 10);
-				const level = Math.max(1, Math.min(number, 6));
-				return "#".repeat(level) + " ";
-			}
-		);
-
-		newContent = content.replace(
-			codeblockSnippetPattern,
-			(match, fileStr) => {
-				modified = true;
-				shouldMoveCursor = true;
-				previousCursor = editor.getCursor();
-				return "```{FILE}\n\n```".replace("{FILE}", fileStr);
-			}
+		const { modified, newLine, cursorPos } = routeSnippet(
+			line,
+			lineNumber,
+			this.settings
 		);
 
 		if (modified) {
-			editor.setValue(newContent);
-			if (shouldMoveCursor && previousCursor) {
-				editor.setCursor(previousCursor);
+			editor.setLine(lineNumber, newLine);
+			// Set cursor to the calculated position
+			if (cursorPos !== undefined) {
+				editor.setCursor({ line: lineNumber, ch: cursorPos });
 			}
 		}
 	}
