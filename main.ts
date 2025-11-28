@@ -3,15 +3,21 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 
 interface MarkdownSpedUpPluginSettings {
 	headingSnippetPattern: string;
+	codeblockSnippetPattern: string;
 }
 
 const DEFAULT_SETTINGS: Partial<MarkdownSpedUpPluginSettings> = {
 	headingSnippetPattern: "DEFAULT",
+	codeblockSnippetPattern: "DEFAULT",
 };
 
 const HEADINGS_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
 	DEFAULT: /^#(\d+)\s(\w+)/gm, // Standard format '#<NUMBER>'
 	EMMET: /^#\*(\d+)\s(\w+)/gm, // Emmet format '#*<NUMBER>'
+};
+
+const CODEBLOCK_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
+	DEFAULT: /`{.(\w+)}`/gm, // Standard format '`{<LANG/FILE>}`'
 };
 
 export default class MarkdownSpedUpPlugin extends Plugin {
@@ -46,19 +52,42 @@ export default class MarkdownSpedUpPlugin extends Plugin {
 	detectSnippets(editor: Editor): void {
 		const content = editor.getValue();
 		// Pattern to match #<NUMBER> at the start of a line
-		const pattern =
+		const headingSnippetPattern =
 			HEADINGS_SNIPPET_PATTERN_MAP[this.settings.headingSnippetPattern];
 
+		const codeblockSnippetPattern =
+			CODEBLOCK_SNIPPET_PATTERN_MAP[
+				this.settings.codeblockSnippetPattern
+			];
+
 		let modified = false;
-		const newContent = content.replace(pattern, (match, numberStr) => {
-			modified = true;
-			const number = parseInt(numberStr, 10);
-			const level = Math.max(1, Math.min(number, 6));
-			return "#".repeat(level) + " ";
-		});
+		let shouldMoveCursor = false;
+		let previousCursor = undefined;
+		let newContent = content.replace(
+			headingSnippetPattern,
+			(match, numberStr) => {
+				modified = true;
+				const number = parseInt(numberStr, 10);
+				const level = Math.max(1, Math.min(number, 6));
+				return "#".repeat(level) + " ";
+			}
+		);
+
+		newContent = content.replace(
+			codeblockSnippetPattern,
+			(match, fileStr) => {
+				modified = true;
+				shouldMoveCursor = true;
+				previousCursor = editor.getCursor();
+				return "```{FILE}\n\n```".replace("{FILE}", fileStr);
+			}
+		);
 
 		if (modified) {
 			editor.setValue(newContent);
+			if (shouldMoveCursor && previousCursor) {
+				editor.setCursor(previousCursor);
+			}
 		}
 	}
 }
