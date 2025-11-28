@@ -1,61 +1,34 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import {Editor, Plugin } from 'obsidian';
 
-// Remember to rename these classes and interfaces!
-
-interface MyPluginSettings {
-	mySetting: string;
-}
-
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
-
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class MarkdownSpedUpPlugin extends Plugin {
 
 	async onload() {
-		await this.loadSettings();
-
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.registerEvent(
+			this.app.workspace.on('editor-change', (editor: Editor) => {
+				this.detectSnippets(editor);
+			})
+		);
 	}
 
 	onunload() {
 
 	}
 
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
+	detectSnippets(editor: Editor): void {
+		const content = editor.getValue();
+		// Pattern to match #<NUMBER> at the start of a line
+		const pattern = /^#(\d+)\s(\w+)/gm;
 
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
-}
+		let modified = false;
+		const newContent = content.replace(pattern, (match, numberStr) => {
+			modified = true;
+			const number = parseInt(numberStr, 10);
+			const level = Math.max(1, Math.min(number, 6));
+			return '#'.repeat(level) + ' ';
+		});
 
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+		if (modified) {
+			editor.setValue(newContent);
+		}
 	}
 }
