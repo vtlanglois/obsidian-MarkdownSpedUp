@@ -15,12 +15,11 @@ const DEFAULT_SETTINGS: Partial<MarkdownSpedUpPluginSettings> = {
 
 const HEADINGS_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
 	DEFAULT: /^#(\d+)\s(\w+)/g, // Standard format '#<NUMBER>'
-	EMMET: /^#\*(\d+)\s(\w+)/g, // Emmet format '#*<NUMBER>'
 };
 
 const CODEBLOCK_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
-	DEFAULT: /^`{.(\w+)}`/g, // Standard format '`{<LANG/FILE>}`'
-	QUICK: /^\.(\w+)\s/g,    // Quick format '.<LANG/FILE>'
+	DEFAULT:  /^\.(\w+)\s/g,  // Standard format '.<LANG/FILE>'
+	LONG: /^`{.(\w+)}`/g,     // Long format '`{<LANG/FILE>}`
 };
 
 const CALLOUT_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
@@ -205,36 +204,13 @@ class MarkdownSpedUpSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName("Snippet Configurations").setHeading();
 
-		const headingFormatDesc = document.createDocumentFragment();
-		headingFormatDesc.appendText("Change heading snippet format: ");
-		const headingList = headingFormatDesc.createEl("ol");
-
-		// Add list items
-		headingList.createEl("li", { text: "DEFAULT: Use #<NUMBER> format" });
-		headingList.createEl("li", { text: "EMMET: Use #*<NUMBER> format" });
-
-		new Setting(containerEl)
-			.setName("Format for Headings")
-			.setDesc(headingFormatDesc)
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption("DEFAULT", "Default")
-					.addOption("EMMET", "Emmet")
-					.setValue(this.plugin.settings.headingSnippetPattern)
-					.onChange(async (value) => {
-						this.plugin.settings.headingSnippetPattern = value;
-						await this.plugin.saveSettings();
-						this.display();
-					})
-			);
-
 		const codeblockFormatDesc = document.createDocumentFragment();
 		codeblockFormatDesc.appendText("Change codeblock snippet format: ");
 		const codeBlocklist = codeblockFormatDesc.createEl("ol");
 
 		// Add list items
-		codeBlocklist.createEl("li", { text: "DEFAULT: Use `{.<LANG/FILE>}` format" });
-		codeBlocklist.createEl("li", { text: "QUICK: Use .<LANG/FILE> format" });
+		codeBlocklist.createEl("li", { text: "DEFAULT: Use .<LANG/FILE> format" });
+		codeBlocklist.createEl("li", { text: "LONG: Use`{.<LANG/FILE>}` format" });
 
 		new Setting(containerEl)
 			.setName("Format for Headings")
@@ -242,7 +218,7 @@ class MarkdownSpedUpSettingTab extends PluginSettingTab {
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption("DEFAULT", "Default")
-					.addOption("QUICK", "Quick")
+					.addOption("LONG", "Long")
 					.setValue(this.plugin.settings.codeblockSnippetPattern)
 					.onChange(async (value) => {
 						this.plugin.settings.codeblockSnippetPattern = value;
