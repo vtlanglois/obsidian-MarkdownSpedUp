@@ -18,7 +18,7 @@ const HEADINGS_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
 };
 
 const CODEBLOCK_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
-	DEFAULT:  /^\.(\w+)\s/g,  // Standard format '.<LANG/FILE>'
+	DEFAULT: /^\.(\w+)\s/g,  // Standard format '.<LANG/FILE>'
 	LONG: /^`{.(\w+)}`/g,     // Long format '`{<LANG/FILE>}`
 };
 
@@ -149,7 +149,9 @@ export default class MarkdownSpedUpPlugin extends Plugin {
 		this.addSettingTab(new MarkdownSpedUpSettingTab(this.app, this));
 	}
 
-	onunload() { }
+	onunload() {
+
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
@@ -202,10 +204,8 @@ class MarkdownSpedUpSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		new Setting(containerEl).setName("Snippet Configurations").setHeading();
-
 		const codeblockFormatDesc = document.createDocumentFragment();
-		codeblockFormatDesc.appendText("Change codeblock snippet format: ");
+		codeblockFormatDesc.appendText("Change codeblock snippet format:");
 		const codeBlocklist = codeblockFormatDesc.createEl("ol");
 
 		// Add list items
@@ -213,7 +213,7 @@ class MarkdownSpedUpSettingTab extends PluginSettingTab {
 		codeBlocklist.createEl("li", { text: "LONG: Use`{.<LANG/FILE>}` format" });
 
 		new Setting(containerEl)
-			.setName("Format for Headings")
+			.setName("Snippet format for codeblocks")
 			.setDesc(codeblockFormatDesc)
 			.addDropdown((dropdown) =>
 				dropdown
