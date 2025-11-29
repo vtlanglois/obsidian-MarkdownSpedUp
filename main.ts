@@ -20,12 +20,12 @@ const HEADINGS_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
 
 const CODEBLOCK_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
 	DEFAULT: /^`{.(\w+)}`/g, // Standard format '`{<LANG/FILE>}`'
-	QUICK: /^\.(\w+)\s/g
+	QUICK: /^\.(\w+)\s/g,    // Quick format '.<LANG/FILE>'
 };
 
 const CALLOUT_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
-	DEFAULT: /^!(\w+)\s/g
-}
+	DEFAULT: /^!(\w+)([+\-]?)(?:"([^"]*)")?\s/g
+};
 
 // Snippet handler types
 type SnippetHandler = (
@@ -65,19 +65,21 @@ function handleCodeblockSnippet(
 }
 
 /**
- * Callout snippet handler - converts !<TYPE> to Obsidian callouts
+ * Callout snippet handler - converts !<TYPE>[+/-]{text} to Obsidian callouts
  */
-
 function handleCalloutSnippet(
 	line: string,
-	match: RegExpExecArray
+	match: RegExpMatchArray
 ): { newLine: string; cursorPos?: number } {
 	const typeStr = match[1];
-	const newContext = ">[!" + typeStr + "]\n>";
-	const newLine = line.replace(match[0], newContext)
-	const cursorPos = (match.index ?? 0) + (">" + typeStr).length + 1;
-	return { newLine, cursorPos }
+	const modifier = match[2]; // + or - or empty
+	const text = match[3]; // text inside brackets
 
+	const newContext = ">[!" + typeStr + "]" + modifier + " " + (text ? text : "") + "\n>";
+	const newLine = line.replace(match[0], newContext);
+
+	const cursorPos = (match.index ?? 0) + (">[!" + typeStr + "]" + modifier + " " + (text ? text : "") + "\n>").length;
+	return { newLine, cursorPos };
 }
 
 /**
