@@ -26,13 +26,12 @@ const CALLOUT_SNIPPET_PATTERN_MAP: Record<string, RegExp> = {
 	DEFAULT: /^!(\w+)([+\-]?)(?:"([^"]*)")?\s/g
 };
 
-// Snippet handler types
-type SnippetHandler = (
-	line: string,
-	match: RegExpMatchArray,
-	editor: Editor,
-	lineNumber: number
-) => string | null;
+type SnippetHandlerResponse = {
+	/** New line to replace the snipper with, following format conversion. */
+	newLine: string,
+	/** Optional number to allow for the cursor to move to a new position, such as for codeblock snippets  */
+	cursorPos?: number
+}
 
 /**
  * Heading snippet handler - converts #<NUMBER> to markdown heading levels
@@ -40,7 +39,7 @@ type SnippetHandler = (
 function handleHeadingSnippet(
 	line: string,
 	match: RegExpMatchArray
-): { newLine: string; cursorPos?: number } {
+): SnippetHandlerResponse {
 	const numberStr = match[1];
 	const number = parseInt(numberStr, 10);
 	const level = Math.max(1, Math.min(number, 6));
@@ -54,7 +53,7 @@ function handleHeadingSnippet(
 function handleCodeblockSnippet(
 	line: string,
 	match: RegExpMatchArray
-): { newLine: string; cursorPos?: number } {
+): SnippetHandlerResponse {
 	const fileStr = match[1];
 	const newContent = "```" + fileStr + "\n\n```";
 	const newLine = line.replace(match[0], newContent);
@@ -69,7 +68,7 @@ function handleCodeblockSnippet(
 function handleCalloutSnippet(
 	line: string,
 	match: RegExpMatchArray
-): { newLine: string; cursorPos?: number } {
+): SnippetHandlerResponse {
 	const typeStr = match[1];
 	const modifier = match[2]; // + or - or empty
 	const text = match[3]; // text inside brackets
