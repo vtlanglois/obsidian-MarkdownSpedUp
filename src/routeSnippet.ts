@@ -1,8 +1,9 @@
-import { HEADINGS_SNIPPET_PATTERN_MAP, CODEBLOCK_SNIPPET_PATTERN_MAP, CALLOUT_SNIPPET_PATTERN_MAP } from "./settings";
+import { HEADINGS_SNIPPET_PATTERN_MAP, CODEBLOCK_SNIPPET_PATTERN_MAP, CALLOUT_SNIPPET_PATTERN_MAP, BOLD_LIST_ITEM_SNIPPET_PATTERN_MAP } from "./settings";
 import type { MarkdownSpedUpPluginSettings } from "./settings"
 import handleCalloutSnippet from "./snippets/calloutSnippet";
 import handleHeadingSnippet from "./snippets/headingSnippet";
 import handleCodeblockSnippet from "./snippets/codeblockSnippet";
+import handleBoldListItemSnippet from "./snippets/boldListItemSnippet";
 
 /**
  * Snippet router - detects snippet type and routes to appropriate handler
@@ -52,6 +53,19 @@ export default function routeSnippet(
       newLine: result.newLine,
       cursorPos: result.cursorPos,
     };
+  }
+
+  // Check for bold list item snippet
+  const boldListItemPattern = BOLD_LIST_ITEM_SNIPPET_PATTERN_MAP[settings.boldListItemSnippetPattern]
+  boldListItemPattern.lastIndex = 0; // Reset regex state
+  const boldListItemMatch = boldListItemPattern.exec(line);
+  if(boldListItemMatch) {
+    const result = handleBoldListItemSnippet(line, boldListItemMatch);
+    return {
+      modified: true,
+      newLine: result.newLine,
+      cursorPos: result.cursorPos,
+    }
   }
 
   return { modified: false, newLine: line };
